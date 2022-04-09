@@ -1,0 +1,10 @@
+/__pycache__/
+/.vscode/
+/.cache/
+/.venv/
+/build/
+/dist/
+/logs/
+/defaults/
+/.idea/
+/database/GetSchoolInfo/
