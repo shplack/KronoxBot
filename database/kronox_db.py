@@ -54,11 +54,16 @@ class Database:
         @staticmethod
         @cache
         def by_name(name: str) -> str:
-            query = f'SELECT acronym FROM schools WHERE name = ?;'
+            query = 'SELECT acronym FROM schools WHERE name = ?;'
             results = Database.fetchone(query, name)
             return results == [] and '' or results[0]
 
         class Localizations:
+            @staticmethod
+            def add(school: str, locale: str, localization: str) -> None:
+                query = 'INSERT INTO school_localization (school, locale, localization) VALUES (?, ?, ?);'
+                Database.query(query, school, locale, localization)
+
             @staticmethod
             @cache
             def all() -> dict:
@@ -127,11 +132,19 @@ class Database:
         @staticmethod
         @cache
         def by_school(school: str) -> list:
-            query = 'SELECT name FROM programs WHERE school = ?;'
-            results = Database.fetchall(query, school)
+            query = """
+            SELECT programs.name FROM programs 
+            INNER JOIN schools on programs.school = schools.name
+            WHERE school = ? OR acronym = ?;"""
+            results = Database.fetchall(query, school, school)
             return results and [program for program, in results] or []
 
         class Localizations:
+            @staticmethod
+            def add(school: str, program: str, locale: str, localization: str) -> None:
+                query = 'INSERT INTO program_localization (school, program, locale, localization) VALUES (?, ?, ?, ?);'
+                Database.query(query, school, program, locale, localization)
+
             @staticmethod
             @cache
             def all() -> dict:
