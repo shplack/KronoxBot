@@ -46,24 +46,24 @@ class Database:
 
         @staticmethod
         @cache
-        def get_link(school: str) -> str:
+        def link(school: str) -> str:
             query = 'SELECT link FROM schools WHERE name = ? OR acronym = ?;'
             results = Database.fetchone(query, school, school)
-            return results == [] and '' or results[0]
+            return results is None and '' or results[0]
 
         @staticmethod
         @cache
         def by_acronym(acronym: str) -> str:
             query = f'SELECT name FROM schools WHERE acronym = ?;'
             results = Database.fetchone(query, acronym)
-            return results == [] and '' or results[0]
+            return results is None and '' or results[0]
 
         @staticmethod
         @cache
         def by_name(name: str) -> str:
             query = 'SELECT acronym FROM schools WHERE name = ?;'
             results = Database.fetchone(query, name)
-            return results == [] and '' or results[0]
+            return results is None and '' or results[0]
 
         class Localizations:
             @staticmethod
@@ -135,6 +135,13 @@ class Database:
                     programs[school] = []
                 programs[school].append(program)
             return programs
+        
+        @staticmethod
+        @cache
+        def link(school: str, program: str) -> str:
+            query = 'SELECT link FROM programs WHERE name = ? AND school = ?;'
+            results = Database.fetchone(query, program, school)
+            return results is None and '' or results[0]
 
         @staticmethod
         @cache
@@ -215,6 +222,13 @@ class Database:
             def all() -> list[tuple[str, str]] or None:
                 query = 'SELECT school, name FROM courses;'
                 return Database.fetchall(query)
+
+            @staticmethod
+            @cache
+            def link(school: str, course: str) -> str:
+                query = 'SELECT link FROM courses WHERE school = ? AND name = ?;'
+                results = Database.fetchone(query, school, course)
+                return results is None and '' or results[0]
 
             @staticmethod
             @cache
