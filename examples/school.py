@@ -408,3 +408,19 @@ schools = Option(
 )
 
 choices = [_hb, _hig, _hkr, _hv, _ltu, _mau, _mdu, _sh, _oru]
+from database.kronox_db import Database
+Database("../database/kronox_db.sqlite")
+count = 1
+for school in choices:
+    try:
+        Database.Schools.add(
+            school.name_localizations['en-GB'],
+            school.value,
+            'TBA' + str(count)
+        )
+    except Exception as e:
+        print(e)
+    count += 1
+    # finally:
+    #     for locale, localization in school.name_localizations.items():
+    #         Database.Schools.Localizations.add(school.name_localizations['en-GB'], locale, localization)
