@@ -1,5 +1,3 @@
-from functools import cache
-
 import discord
 from discord import Option, AutocompleteContext, ApplicationContext
 
@@ -19,16 +17,42 @@ async def on_ready():
 class Autocomplete:
     @staticmethod
     async def schools(ctx: AutocompleteContext):
+        value = ctx.value.lower()
+
+        schools = Database.Schools.all()
+        acronyms = [acro.upper() for acro, x in schools.items() if acro.lower().find(value) >= 0]
+        if acronyms:
+            return acronyms
+
         locs = Database.Schools.Localizations.by_locale(ctx.interaction.locale)
-        return [acro.upper() for acro, x in locs if acro.lower().find(ctx.value.lower()) >= 0] or \
-               [loc for x, loc in locs if loc.lower().find(ctx.value.lower()) >= 0]
+        if locs:  # are there localizations for user's locale yet?
+            schools = [loc for x, loc in locs if loc.lower().find(value) >= 0]
+            if schools:
+                return schools
+
+        # user might be writing in swedish
+        locs = Database.Schools.Localizations.by_locale('sv-SE')
+        if locs != {}:  # are there localizations for swedish yet?
+            schools = [loc for x, loc in locs if loc.lower().find(value) >= 0]
+            if schools:
+                return schools
+
+        # last resort
+        schools = Database.Schools.all()
+        return [school for school in schools.values() if school.lower().find(value) >= 0]
 
     @staticmethod
     async def programs(ctx: AutocompleteContext):
+        value = ctx.value.lower()
         school = ctx.options['school']
         locs = Database.Programs.Localizations.by_school_locale(school, ctx.interaction.locale)
-        print(school, locs, ctx.interaction.locale)
-        return [loc for x, loc in locs if loc.lower().find(ctx.value.lower()) >= 0]
+        if locs:  # are there localizations for user's locale yet?
+            return [loc for x, loc in locs if loc.lower().find(value) >= 0]
+        print(value, school, locs)
+        programs = Database.Programs.by_school(school)
+        if programs:
+            return [program for program in programs if program.lower().find(value) >= 0]
+        return []
 
 
 @bot.slash_command(guild_ids=guilds)
@@ -38,19 +62,6 @@ async def kronox(
         program: Option(str, "Pick a program", autocomplete=Autocomplete.programs)
 ):
     ctx.respond(school)
-
-
-@cache
-async def idk(ctx: AutocompleteContext):
-    return ['1', '2', '3']
-
-
-@bot.slash_command(guild_ids=guilds)
-async def test(
-        ctx: ApplicationContext,
-        test: Option(str, 'test', autocomplete=idk)
-):
-    ctx.respond(test)
 
 
 bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
