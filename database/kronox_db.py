@@ -3,15 +3,21 @@ from sqlite3 import Connection, connect
 
 
 class Database:
-    _conn: Connection
+    _conn: Connection = None
 
     @classmethod
     def __init__(cls, path: str) -> None:
         cls._conn = connect(path)
 
     @classmethod
+    @property
+    def has_conn(cls) -> bool:
+        return cls._conn is not None
+
+    @classmethod
     def close(cls) -> None:
         cls._conn.close()
+        cls._conn = None
 
     @classmethod
     def query(cls, sql, *args) -> None:
@@ -49,21 +55,21 @@ class Database:
         def link(school: str) -> str:
             query = 'SELECT link FROM schools WHERE name = ? OR acronym = ?;'
             results = Database.fetchone(query, school, school)
-            return results is None and '' or results[0]
+            return results is not None and results[0] or ''
 
         @staticmethod
         @cache
         def by_acronym(acronym: str) -> str:
             query = f'SELECT name FROM schools WHERE acronym = ?;'
             results = Database.fetchone(query, acronym)
-            return results is None and '' or results[0]
+            return results is not None and results[0] or ''
 
         @staticmethod
         @cache
         def by_name(name: str) -> str:
             query = 'SELECT acronym FROM schools WHERE name = ?;'
             results = Database.fetchone(query, name)
-            return results is None and '' or results[0]
+            return results is not None and results[0] or ''
 
         class Localizations:
             @staticmethod
@@ -135,13 +141,17 @@ class Database:
                     programs[school] = []
                 programs[school].append(program)
             return programs
-        
+
         @staticmethod
         @cache
         def link(school: str, program: str) -> str:
-            query = 'SELECT link FROM programs WHERE name = ? AND school = ?;'
-            results = Database.fetchone(query, program, school)
-            return results is None and '' or results[0]
+            query = """
+            SELECT programs.link FROM programs
+            INNER JOIN schools on programs.school = schools.name
+            WHERE (schools.name = ? OR schools.acronym = ?) AND programs.name = ?
+            """
+            results = Database.fetchone(query, school, school, program)
+            return results is not None and results[0] or ''
 
         @staticmethod
         @cache
@@ -228,7 +238,7 @@ class Database:
             def link(school: str, course: str) -> str:
                 query = 'SELECT link FROM courses WHERE school = ? AND name = ?;'
                 results = Database.fetchone(query, school, course)
-                return results is None and '' or results[0]
+                return results is not None and results[0] or ''
 
             @staticmethod
             @cache
