@@ -46,6 +46,13 @@ class Database:
 
         @staticmethod
         @cache
+        def get_link(school: str) -> str:
+            query = 'SELECT link FROM schools WHERE name = ? OR acronym = ?;'
+            results = Database.fetchone(query, school, school)
+            return results == [] and '' or results[0]
+
+        @staticmethod
+        @cache
         def by_acronym(acronym: str) -> str:
             query = f'SELECT name FROM schools WHERE acronym = ?;'
             results = Database.fetchone(query, acronym)
