@@ -33,7 +33,6 @@ class Database:
 
     class Schools:
         @staticmethod
-        @cache
         def add(name: str, acronym: str, link: str):
             query = 'INSERT INTO schools (name, acronym, link) VALUES (?, ?, ?);'
             Database.query(query, name, acronym, link)
@@ -107,6 +106,11 @@ class Database:
                 """, school)
 
     class Programs:
+        @staticmethod
+        def add(name: str, school: str, link: str):
+            query = 'INSERT INTO programs (name, school, link) VALUES (?, ?, ?);'
+            Database.query(query, name, school, link)
+
         @staticmethod
         @cache
         def all() -> dict[str, list]:

@@ -8,13 +8,9 @@ drop table if exists dialogue;
 
 drop table if exists program_localization;
 
-drop table if exists school_localization;
-
-drop table if exists subprograms;
-
-drop table if exists subprograms_localization;
-
 drop table if exists programs;
+
+drop table if exists school_localization;
 
 drop table if exists schools;
 
@@ -104,7 +100,9 @@ create table programs
     school text not null
         constraint programs_schools_name_fk
             references schools (name)
-            on update cascade on delete cascade
+            on update cascade on delete cascade,
+    constraint programs_pk_2
+        unique (school, name)
 );
 
 create table program_localization
@@ -155,46 +153,4 @@ create unique index schools_link_uindex
 
 create unique index schools_name_uindex
     on schools (name);
-
-create table subprograms
-(
-    id      integer
-        constraint subprograms_pk
-            primary key autoincrement,
-    school  text not null
-        constraint subprograms_schools_name_fk
-            references schools (name)
-            on update cascade on delete cascade,
-    program text not null
-        constraint subprograms_programs_name_fk
-            references programs (name)
-            on update cascade on delete cascade,
-    name    text not null,
-    link    text not null,
-    constraint subprograms_pk_2
-        unique (school, program, name)
-);
-
-create unique index subprograms_link_uindex
-    on subprograms (link);
-
-create table subprograms_localization
-(
-    id           integer
-        constraint subprograms_localization_pk
-            primary key autoincrement,
-    school       text not null
-        constraint subprograms_localization_schools_name_fk
-            references schools (name)
-            on update cascade on delete cascade,
-    program      text not null,
-    subprogram   text not null,
-    locale       text not null,
-    localization text not null,
-    constraint subprograms_localization_pk_2
-        unique (program, subprogram, locale),
-    constraint subprograms_localization_programs_name_name_name_fk
-        foreign key (school, program, subprogram) references programs (name, name, name)
-            on update cascade on delete cascade
-);
 
