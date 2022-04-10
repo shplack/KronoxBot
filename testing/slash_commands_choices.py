@@ -54,6 +54,12 @@ class Autocomplete:
             return [program for program in programs if program.lower().find(value) >= 0]
         return []
 
+    @staticmethod
+    async def courses(ctx: AutocompleteContext):
+        value = ctx.value.lower()
+        school = ctx.options['school']
+        # TODO: database courses
+
 
 @bot.slash_command(guild_ids=guilds)
 async def kronox(
