@@ -1,101 +1,181 @@
-import os
-import sqlite3
-from typing import Iterable
+from functools import cache
+from sqlite3 import Connection, connect
 
 
 class Database:
+    _conn: Connection
 
-    def __init__(self, path: str, init: bool = False):
-        if path != ':memory:':
-            if os.path.isdir(path):
-                raise FileNotFoundError(f'This is a directory: {path}')
-            if os.path.exists(path) and not os.access(path, os.R_OK):
-                raise OSError(f'You do not have permission to read file: {path}')
+    @classmethod
+    def __init__(cls, path: str):
+        cls._conn = connect(path)
 
-        self._conn = sqlite3.connect(path)
-        self.path = path
-        print(f'Connected to sqlite3 database at "{path}"')
+    @classmethod
+    def close(cls):
+        cls._conn.close()
 
-    def __str__(self):
-        return f'{sqlite3.version} at {self.path}'
+    @classmethod
+    def query(cls, sql, *args):
+        cls._conn.execute(sql, args)
+        cls._conn.commit()
 
-    def close(self):
-        if self._conn:
-            self._conn.close()
+    @classmethod
+    def fetchone(cls, sql, *args):
+        return cls._conn.execute(sql, args).fetchone()
 
-    def query(self, query: str, *args: Iterable):
-        cursor = self._conn.cursor()
-        if len(args) > 0:
-            cursor.execute(query, args)
-        else:
-            cursor.execute(query)
-        self._conn.commit()
+    @classmethod
+    def fetchall(cls, sql, *args):
+        return cls._conn.execute(sql, args).fetchall()
 
-    def script(self, script: str):
-        cursor = self._conn
-        cursor.executescript(script)
-        self._conn.commit()
+    @classmethod
+    def script(cls, sql):
+        cls._conn.executescript(sql)
+        cls._conn.commit()
 
-    def add_school(self, name: str, acronym: str, link: str):
-        query = 'INSERT INTO schools (name, acronym, link) VALUES (?, ?, ?);'
-        self.query(query, name, acronym, link)
+    class Schools:
+        @staticmethod
+        @cache
+        def add(name: str, acronym: str, link: str):
+            query = 'INSERT INTO schools (name, acronym, link) VALUES (?, ?, ?);'
+            Database.query(query, name, acronym, link)
 
-    def add_program(self, program_name: str, link: str, school_name: str):
-        query = 'INSERT INTO programs (name, link, school) VALUES (?, ?, ?)'
-        self.query(query, program_name, link, school_name)
+        @staticmethod
+        @cache
+        def all() -> dict:
+            query = 'SELECT name, acronym FROM schools;'
+            results = Database.fetchall(query)
+            return {acronym: name for name, acronym in results}
 
-    def add_subprogram(self, school_name: str, program_name: str, subprogram_name: str, link: str):
-        query = 'INSERT INTO subprograms (school, program, name, link) VALUES (?, ?, ?, ?);'
-        self.query(query, school_name, program_name, subprogram_name, link)
+        @staticmethod
+        @cache
+        def by_acronym(acronym: str) -> str:
+            query = f'SELECT name FROM schools WHERE acronym = ?;'
+            results = Database.fetchone(query, acronym)
+            return results == [] and '' or results[0]
 
-    def add_course(self, course_name: str, link: str, school_name: str):
-        query = 'INSERT INTO courses (name, link, school) VALUES (?, ?, ?);'
-        self.query(query, course_name, link, school_name)
+        @staticmethod
+        @cache
+        def by_name(name: str) -> str:
+            query = f'SELECT acronym FROM schools WHERE name = ?;'
+            results = Database.fetchone(query, name)
+            return results == [] and '' or results[0]
 
-    def get_schools(self, *columns: str) -> dict or None:
-        if len(columns) == 0:
-            return
+        class Localizations:
+            @staticmethod
+            @cache
+            def all() -> dict:
+                query = 'SELECT school, locale, localization FROM school_localization;'
+                results = Database.fetchall(query)
 
-        column_names = ['name', 'acronym', 'link']
-        if not set(column_names).intersection(set(columns)):
-            return
+                localizations = {}
+                for name, locale, localization in results:
+                    if name not in localizations:
+                        localizations[name] = {}
+                    localizations[name][locale] = localization
+                return localizations
 
-        query = f'select {", ".join(columns)} from schools;'
-        return self._conn.cursor().execute(query).fetchall()
+            @staticmethod
+            @cache
+            def by_locale(locale: str) -> list[tuple[str, str, str]]:
+                return Database.fetchall("""
+                    SELECT acronym, localization 
+                    FROM school_localization 
+                    INNER JOIN schools
+                    ON school_localization.school = schools.name
+                    WHERE locale = ?;
+                """, locale)
 
-    def get_programs(self, school: str, *columns: str) -> dict or None:
-        if len(columns) == 0 or school == '':
-            return
+            @staticmethod
+            @cache
+            def by_acronym(acronym: str) -> list[tuple[str, str, str]]:
+                return Database.fetchall("""
+                    SELECT acronym, school, localization 
+                    FROM school_localization 
+                    INNER JOIN schools
+                    ON school_localization.school = schools.name
+                    WHERE acronym = ?;
+                """, acronym)
 
-        column_names = ['name, link']
-        if not set(column_names).intersection(set(columns)):
-            return
+            @staticmethod
+            @cache
+            def by_school(school: str) -> list[tuple[str, str, str]]:
+                return Database.fetchall("""
+                    SELECT acronym, school, localization 
+                    FROM school_localization 
+                    INNER JOIN schools
+                    ON school_localization.school = schools.name
+                    WHERE school = ?;
+                """, school)
 
-        query = f'select {", ".join(columns)} from programs where school = ?'
-        return self._conn.cursor().execute(query, (school,)).fetchall()
+    class Programs:
+        @staticmethod
+        @cache
+        def all() -> dict[str, list]:
+            query = 'SELECT school, name FROM programs;'
+            results = Database.fetchall(query)
 
-    def get_subprograms(self, school: str, program: str, *columns: str) -> dict or None:
-        if len(columns) == 0 or school == '' or program == '':
-            return
+            programs: dict[str, list] = {}
+            for school, program in results:
+                if school not in programs:
+                    programs[school] = []
+                programs[school].append(program)
+            return programs
 
-        column_names = ['name', 'link']
-        if not set(column_names).intersection(set(columns)):
-            return
+        @staticmethod
+        @cache
+        def by_school(school: str) -> list:
+            query = 'SELECT name FROM programs WHERE school = ?;'
+            results = Database.fetchall(query, school)
+            return results and [program for program, in results] or []
 
-        query = f'select {", ".join(columns)} from subprograms where school = ? and program = ?'
-        return self._conn.cursor().execute(query, (school, program)).fetchall()
+        class Localizations:
+            @staticmethod
+            @cache
+            def all() -> dict:
+                query = 'SELECT school, program, locale, localization FROM program_localization;'
+                results = Database.fetchall(query)
 
-    def get_courses(self, school: str, *columns: str) -> dict or None:
-        if len(columns) == 0 or school == '':
-            return
+                localizations = {}
+                for school, program, locale, localization in results:
+                    if school not in localizations:
+                        localizations[school] = {}
+                    if program not in localizations[school]:
+                        localizations[program] = {}
+                    localizations[school][program][locale] = localization
+                return localizations
 
-        column_names = ['name, link']
-        if not set(column_names).intersection(set(columns)):
-            return
+            @staticmethod
+            @cache
+            def by_locale(locale: str) -> dict:
+                query = 'SELECT school, program, localization FROM program_localization WHERE locale = ?;'
+                results = Database.fetchall(query, locale)
 
-        query = f'select {", ".join(columns)} from courses where school = ?'
-        return self._conn.cursor().execute(query, (school,)).fetchall()
+                localizations = {}
+                for school, program, localization in results:
+                    if school not in localizations:
+                        localizations[school] = {}
+                    localizations[school][program] = localization
+                return localizations
 
-    @property
-    def conn(self):
-        return self._conn
+            @staticmethod
+            @cache
+            def by_school(school: str) -> dict:
+                query = 'SELECT program, locale, localization FROM program_localization WHERE school = ?;'
+                results = Database.fetchall(query, school)
+
+                localizations = {}
+                for program, locale, localization in results:
+                    if program not in localizations:
+                        localizations[program] = {}
+                    localizations[program][locale] = localization
+                return localizations
+
+            @staticmethod
+            @cache
+            def by_school_locale(school: str, locale: str) -> list[tuple]:
+                query = """
+                SELECT program, localization
+                FROM program_localization 
+                INNER JOIN schools s on program_localization.school = s.name
+                WHERE (school = ? OR acronym = ?) AND locale = ?;
+                """
+                return Database.fetchall(query, school, school, locale)
