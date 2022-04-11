@@ -108,7 +108,7 @@ def get_events(ical_url: str) -> list:
     print(ical_url)
     print(_events)
     output = []
-    _start = len('Kurs.grp: ') + 1
+    _start = len('Kurs.grp: ')
     _end = ' Sign:'
 
     def fmt_time(date: dt):
@@ -120,6 +120,6 @@ def get_events(ical_url: str) -> list:
         start_time = fmt_time(event.start)
         end_time = fmt_time(event.end)
         location = event.location
-        output.append(' '.join([name, organizer, start_time, end_time, location]))
+        output.append(' '.join([start_time, '-', end_time, name, location, organizer]))
 
     return output
