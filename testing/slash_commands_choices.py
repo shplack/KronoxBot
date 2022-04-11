@@ -2,6 +2,7 @@ import discord
 from discord import Option, AutocompleteContext, ApplicationContext
 
 from database.kronox_db import Database
+from src.kronox import LinkMaker
 
 Database('../database/kronox_db.sqlite')
 bot = discord.Bot(intents=discord.Intents.all())
@@ -48,7 +49,6 @@ class Autocomplete:
         locs = Database.Programs.Localizations.by_school_locale(school, ctx.interaction.locale)
         if locs:  # are there localizations for user's locale yet?
             return [loc for x, loc in locs if loc.lower().find(value) >= 0]
-        print(value, school, locs)
         programs = Database.Programs.by_school(school)
         if programs:
             return [program for program in programs if program.lower().find(value) >= 0]
@@ -65,9 +65,16 @@ class Autocomplete:
 async def kronox(
         ctx: ApplicationContext,
         school: Option(str, "Pick a school", autocomplete=Autocomplete.schools),
-        program: Option(str, "Pick a program", autocomplete=Autocomplete.programs)
+        program: Option(str, "Pick a program", autocomplete=Autocomplete.programs),
+        start: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today'),
+        end: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today')
 ):
-    ctx.respond(school)
+    lm = LinkMaker()
+    lm.school = school
+    lm.program = program
+    lm.start = start
+    lm.end = end
+    await ctx.respond(lm.link)
 
 
 bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
