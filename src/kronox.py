@@ -1,6 +1,9 @@
 import datetime
 from datetime import datetime as dt, timedelta as td
 
+from icalevents import icalevents
+from pytz import timezone
+
 from database.kronox_db import Database
 
 ical_link = 'setup/jsp/SchemaICAL.ics?'
@@ -98,3 +101,20 @@ class LinkMaker:
             link += 'c.' + self._course_link + ','
 
         return link
+
+
+def get_events(ical_url: str) -> list:
+    _events = icalevents.events(url=ical_url)
+    output = []
+    _start = len('Kurs.grp: ')
+    _end = ' Sign:'
+
+    for event in _events:
+        name = event.summary[_start: event.summary.find(_end)]
+        organizer = event.summary[event.summary.find(_end) + len(_end): event.summary.find(' Moment')]
+        start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d %X')
+        end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
+        location = event.location
+        output.append(' '.join([start_time, '-', end_time, name, location, organizer]))
+
+    return output

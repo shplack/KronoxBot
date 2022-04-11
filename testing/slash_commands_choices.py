@@ -2,7 +2,7 @@ import discord
 from discord import Option, AutocompleteContext, ApplicationContext
 
 from database.kronox_db import Database
-from src.kronox import LinkMaker
+from src.kronox import LinkMaker, get_events
 
 Database('../database/kronox_db.sqlite')
 bot = discord.Bot(intents=discord.Intents.all())
@@ -74,7 +74,7 @@ async def kronox(
     lm.program = program
     lm.start = start
     lm.end = end
-    await ctx.respond(lm.link)
+    await ctx.respond('```' + '\n'.join(get_events(lm.link)) + '```')
 
 
 bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
