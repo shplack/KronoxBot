@@ -1,127 +1,80 @@
-import argparse
-from datetime import datetime
-from io import StringIO
-from typing import List
+import discord
+from discord import Option, AutocompleteContext, ApplicationContext
 
-from discord.ext import commands
-from pytz import timezone
+from database.kronox_db import Database
+from src.kronox import LinkMaker, get_events
 
-from examples import kronox
-from examples.school import schools
-from icalevents import icalparser
-from src.logger.botlogger import init_logger
+Database('../database/kronox_db.sqlite')
+bot = discord.Bot(intents=discord.Intents.all())
 
-keys = [
-    'school',
-    'start',
-    'end',
-    'timezone',
-    'programs',
-    'courses',
-    'language'
-]
+guilds = [958457225096085534]
 
 
+@bot.event
+async def on_ready():
+    print('bot tester ready!')
 
 
+class Autocomplete:
+    @staticmethod
+    async def schools(ctx: AutocompleteContext):
+        value = ctx.value.lower()
+
+        schools = Database.Schools.all()
+        acronyms = [acro.upper() for acro, x in schools.items() if acro.lower().find(value) >= 0]
+        if acronyms:
+            return acronyms
+
+        locs = Database.Schools.Localizations.by_locale(ctx.interaction.locale)
+        if locs:  # are there localizations for user's locale yet?
+            schools = [loc for x, loc in locs if loc.lower().find(value) >= 0]
+            if schools:
+                return schools
+
+        # user might be writing in swedish
+        locs = Database.Schools.Localizations.by_locale('sv-SE')
+        if locs != {}:  # are there localizations for swedish yet?
+            schools = [loc for x, loc in locs if loc.lower().find(value) >= 0]
+            if schools:
+                return schools
+
+        # last resort
+        schools = Database.Schools.all()
+        return [school for school in schools.values() if school.lower().find(value) >= 0]
+
+    @staticmethod
+    async def programs(ctx: AutocompleteContext):
+        value = ctx.value.lower()
+        school = ctx.options['school']
+        locs = Database.Programs.Localizations.by_school_locale(school, ctx.interaction.locale)
+        if locs:  # are there localizations for user's locale yet?
+            return [loc for x, loc in locs if loc.lower().find(value) >= 0]
+        programs = Database.Programs.by_school(school)
+        if programs:
+            return [program for program in programs if program.lower().find(value) >= 0]
+        return []
+
+    @staticmethod
+    async def courses(ctx: AutocompleteContext):
+        value = ctx.value.lower()
+        school = ctx.options['school']
+        # TODO: database courses
 
 
-if __name__ == '__main__':
-    init_logger()
-    bot = commands.Bot(command_prefix='kronox ', description='Get Kronox schedule')
-    
-    global argparser
-    argparser = argparse.ArgumentParser(prog='KronoxBot')
-    argparser.add_argument('-sc', '--school', nargs='?')
-    argparser.add_argument('-st', '--start', nargs='?')
-    argparser.add_argument('-e', '--end', nargs='?')
-    argparser.add_argument('-tz', '--timezone', nargs='?')
-    argparser.add_argument('-p', '--programs', nargs='+')
-    argparser.add_argument('-c', '--courses', nargs='+')
-    argparser.add_argument('-l', '--lang', nargs='?')
+@bot.slash_command(guild_ids=guilds)
+async def kronox(
+        ctx: ApplicationContext,
+        school: Option(str, "Pick a school", autocomplete=Autocomplete.schools),
+        program: Option(str, "Pick a program", autocomplete=Autocomplete.programs),
+        start: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today'),
+        end: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today')
+):
+    lm = LinkMaker()
+    lm.school = school
+    lm.program = program
+    lm.start = start
+    lm.end = end
+    await ctx.respond('```' + '\n'.join(get_events(lm.link)) + '```')
 
 
-    
-@bot.command()
-async def test(ctx):
-    await ctx.send("I am here to do your bidding!")
-
-
-    
-@bot.command()
-async def schema(ctx, *args):
-    if len(args) == 0:
-       return # TODO: help
-   
-    if args[0] == 'help':
-        help = StringIO()
-        argparser.print_help(help)
-        await ctx.send(f'```{help.getvalue()}```')
-        return
-   
-    args = vars(argparser.parse_args(args))
-    
-    
-    if not args or args == {}:
-        help = StringIO()
-        argparser.print_help(help)
-        await ctx.send(f'```{help.getvalue()}```')
-        return
-    
-    school = schools[args["school"]]
-    
-    tz = args["timezone"] and timezone(args["timezone"]) or timezone("Europe/Stockholm")
-    
-    start = args["start"]
-    if not start or start == 'idag' or start == 'today':
-        start = datetime.today()
-    else:
-        start = datetime.strptime(start, "%Y-%m-%d")
-    start = tz.localize(start)
-        
-    end = args["end"]
-    if end and end != 'idag' and end != 'today':
-        end = datetime.strptime(end, "%Y-%m-%d")
-        end = tz.localize(end)
-        if end < start:
-            ctx.send(f'```End time "{end.ctime()}" cannot be before start time "{start.ctime()}"```')
-            return
-    else:
-        end = start
-    
-    lang = args["lang"] or "SV"
-    
-    programs = args["programs"]
-    courses = args["courses"]
-    
-    if not (args["programs"] or args["courses"]):
-        programs = ["Högskoleingenjör - Datateknik åk 2"]
-    
-    ical: List[icalparser.Event]
-    ical = kronox.search(school, courses, programs, start, end, lang)
-    if ical == []:
-        await ctx.send('```No events found!```')
-        return
-        
-    output = '```'
-    for event in ical:
-        output += event.start.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S") + ' '
-        #'Kurs.grp: System- och programvaruutveckling Sign: fkl Moment: Lecture   Program: Högskoleingenjör - Datateknik åk 2-'
-        output += event.summary[event.summary.find(' ')+1:event.summary.find('Sign: ')]
-        output += str(event)[str(event).find('('):str(event).find(')')+1]
-        output += '\n'
-    output += '```'
-    await ctx.send(output)
-        
-        
-    
-    # msg = [str(event) for event in kronox.search(school, courses, programs, start, end, lang)]
-    # if msg == []:
-    #     await ctx.send('```No events found!```')
-    #     return
-    
-    # await ctx.send('```' + '\n'.join(msg) + '```')
-    
-    
-
-bot.run("OTU4NDU2NDA0ODQxMjIyMTk1.YkNmFg.8oRXpUkaKTNVS7HWY1e_PFrvN6w")
+bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
