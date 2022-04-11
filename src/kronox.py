@@ -1,6 +1,8 @@
 import datetime
 from datetime import datetime as dt, timedelta as td
 
+from database.kronox_db import Database
+
 ical_link = 'setup/jsp/SchemaICAL.ics?'
 start = '&startDatum='
 end = '&slutDatum='
