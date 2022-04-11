@@ -148,9 +148,10 @@ class Database:
             query = """
             SELECT programs.link FROM programs
             INNER JOIN schools on programs.school = schools.name
-            WHERE (schools.name = ? OR schools.acronym = ?) AND programs.name = ?
+            INNER JOIN school_localizations sl on programs.school = sl.school
+            WHERE (schools.name = ? OR schools.acronym = ? OR sl.localization = ?) AND programs.name = ?
             """
-            results = Database.fetchone(query, school, school, program)
+            results = Database.fetchone(query, school, school, school, program)
             return results is not None and results[0] or ''
 
         @staticmethod
@@ -159,8 +160,10 @@ class Database:
             query = """
             SELECT programs.name FROM programs 
             INNER JOIN schools on programs.school = schools.name
-            WHERE school = ? OR acronym = ?;"""
-            results = Database.fetchall(query, school, school)
+            INNER JOIN school_localizations sl on schools.name = sl.school
+            WHERE schools.name = ? OR acronym = ? OR sl.localization = ?;
+            """
+            results = Database.fetchall(query, school, school, school)
             return results and [program for program, in results] or []
 
         class Localizations:
@@ -200,7 +203,10 @@ class Database:
             @staticmethod
             @cache
             def by_school(school: str) -> dict[str, dict[str, str]] or {}:
-                query = 'SELECT program, locale, localization FROM program_localizations WHERE school = ?;'
+                query = """
+                SELECT program, locale, localization 
+                FROM program_localizations 
+                WHERE school = ?;"""
                 results = Database.fetchall(query, school)
 
                 localizations = {}
@@ -214,12 +220,13 @@ class Database:
             @cache
             def by_school_locale(school: str, locale: str) -> list[tuple[str, str]] or None:
                 query = """
-                SELECT program, localization
-                FROM program_localizations 
-                INNER JOIN schools s on program_localizations.school = s.name
-                WHERE (school = ? OR acronym = ?) AND locale = ?;
+                SELECT program, program_localizations.localization
+                FROM program_localizations
+                INNER JOIN schools on program_localizations.school = schools.name
+                INNER JOIN school_localizations sl on schools.name = sl.school
+                WHERE (schools.name = ? OR acronym = ? OR sl.localization = ?) AND program_localizations.locale = ?;
                 """
-                return Database.fetchall(query, school, school, locale)
+                return Database.fetchall(query, school, school, school, locale)
 
         class Courses:
             @staticmethod
@@ -246,7 +253,8 @@ class Database:
                 query = """
                 SELECT courses.name FROM courses
                 INNER JOIN schools on courses.school = schools.name
-                WHERE schools.name = ? OR schools.acronym = ?;
+                INNER JOIN school_localizations sl on schools.name = sl.school
+                WHERE schools.name = ? OR acronym = ? OR sl.localization = ?;
                 """
                 return Database.fetchall(query, school, school)
 
@@ -291,8 +299,10 @@ class Database:
                 @cache
                 def by_school_locale(school: str, locale: str) -> list[tuple[str, str]] or None:
                     query = """
-                    SELECT course, localization FROM course_localizations
+                    SELECT course, course_localizations.localization
+                    FROM course_localizations
                     INNER JOIN schools on course_localizations.school = schools.name
-                    WHERE (schools.name = ? OR schools.acronym = ?) AND locale = ?;
+                    INNER JOIN school_localizations sl on schools.name = sl.school
+                    WHERE (schools.name = ? OR acronym = ? OR sl.localization = ?) AND course_localizations.locale = ?;
                     """
                     return Database.fetchall(query, school, locale)
