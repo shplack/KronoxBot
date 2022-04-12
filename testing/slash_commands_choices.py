@@ -74,7 +74,13 @@ async def kronox(
     lm.program = program
     lm.start = start
     lm.end = end
-    await ctx.respond('```' + '\n'.join(get_events(lm.link)) + '```')
+    events = get_events(lm.link)
+    if not events:
+        await ctx.respond(f"""```
+        KronoxBot found no events between {lm.start} and {lm.end} for {lm.program} at {lm.school}
+        ```""")
+    else:
+        await ctx.respond('```' + '\n'.join(get_events(lm.link)) + '```')
 
 
 bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
