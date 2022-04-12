@@ -50,8 +50,8 @@ async def schema(
         ctx: ApplicationContext,
         school: Option(str, "Pick a school", autocomplete=Autocomplete.schools),
         program: Option(str, "Pick a program", autocomplete=Autocomplete.programs),
-        start: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today'),
-        end: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today')
+        start: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today'),
+        end: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today')
 ):
     # Autocomplete.do_last_used(ctx.user.id, school, program, course)
     Autocomplete.do_last_used(ctx.user.id, school, program)
@@ -67,8 +67,8 @@ async def save(
         name: Option(str, 'Choose a name to identify your saved options'),
         school: Option(str, "Pick a school", autocomplete=Autocomplete.schools),
         program: Option(str, "Pick a program", autocomplete=Autocomplete.programs),
-        start: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today'),
-        end: Option(str, "Today, tmw, or date <YYYY-MM-DD>", default='today')
+        start: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today'),
+        end: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today')
 ):
     # Autocomplete.save(ctx.user.id, name, school, program, course, start, end)
     Autocomplete.save(ctx.user.id, name, school, program, start, end)
