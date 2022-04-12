@@ -34,6 +34,15 @@ class LinkMaker:
         for acceptables, delta in [tdy, tmw, omw]:
             if _input in acceptables:
                 return dt.today() + delta
+
+        if _input.startswith('days'):
+            days = int(''.join(filter(str.isdigit, _input)))
+            return dt.today() + td(days=days)
+
+        if _input.startswith('weeks'):
+            weeks = int(''.join(filter(str.isdigit, _input)))
+            return dt.today() + td(weeks=weeks)
+
         try:
             return dt.strptime(_input, '%Y-%m-%d')
         except ValueError as e:
