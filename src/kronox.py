@@ -31,15 +31,14 @@ class LinkMaker:
         tmw = ['tmorrow', 'tmw', 'imorn', 'imorgon', 'i morgon'], td(days=1)
         omw = ['overmorrow', 'over morrow', 'omw', 'imorn', 'imorgon', 'i morgon'], td(days=2)
 
-        for acceptables, delta in [tdy, tmw,omw]:
+        for acceptables, delta in [tdy, tmw, omw]:
             if _input in acceptables:
-                return (dt.today() + delta).date()
+                return dt.today() + delta
         try:
             return dt.strptime(_input, '%Y-%m-%d')
         except ValueError as e:
             print(e, _input)
-        finally:
-            return dt.today().date()
+            return dt.today()
 
     @property
     def start(self) -> str:
@@ -56,6 +55,7 @@ class LinkMaker:
     @end.setter
     def end(self, value: str) -> None:
         self._end = LinkMaker._do_date(value.lower())
+        self._end += td(days=1)  # want to see the schedule for that day too
 
     @property
     def school(self) -> str:
@@ -102,19 +102,24 @@ class LinkMaker:
 
         return link
 
+    @property
+    def events(self) -> list:
+        _events = icalevents.events(url=self.link, end=self._end)
+        output = []
+        _start = len('Kurs.grp: ')
+        _end = ' Sign:'
 
-def get_events(ical_url: str) -> list:
-    _events = icalevents.events(url=ical_url)
-    output = []
-    _start = len('Kurs.grp: ')
-    _end = ' Sign:'
+        for event in _events:
+            name = event.summary[_start: event.summary.find(_end)]
+            organizer = event.summary[event.summary.find(_end) + len(_end): event.summary.find(' Moment')]
+            start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d %X')
+            end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
+            location = event.location
+            output.append(' '.join([start_time, '-', end_time, name, location, organizer]))
 
-    for event in _events:
-        name = event.summary[_start: event.summary.find(_end)]
-        organizer = event.summary[event.summary.find(_end) + len(_end): event.summary.find(' Moment')]
-        start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d %X')
-        end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
-        location = event.location
-        output.append(' '.join([start_time, '-', end_time, name, location, organizer]))
+        return output
 
-    return output
+    @events.setter
+    def events(self, value):
+        return
+
