@@ -9,3 +9,4 @@
 /.idea/
 /database/GetSchoolInfo/
 /testing/test.py
+src/.env

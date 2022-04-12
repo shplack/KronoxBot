@@ -1,18 +1,28 @@
+import sys
+
 import discord
 from discord import Option, AutocompleteContext, ApplicationContext
+from dotenv import dotenv_values
 
 from database.kronox_db import Database
 from src.kronox import LinkMaker
 
-Database('../database/kronox_db.sqlite')
-bot = discord.Bot(intents=discord.Intents.all())
+config = None
+try:
+    config = dotenv_values(sys.argv[1])
+except:
+    config = dotenv_values('.env')
 
-guilds = [958457225096085534]
+Database(config['db'])
+
+bot = discord.Bot(intents=discord.Intents.default())
+
+guilds = [int(guild) for guild in config['guilds'].split(',')]
 
 
 @bot.event
 async def on_ready():
-    print('bot tester ready!')
+    print('KronoxBot ready!')
 
 
 class Autocomplete:
@@ -83,4 +93,4 @@ async def kronox(
         await ctx.respond('```' + '\n'.join(events) + '```')
 
 
-bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
+bot.run(config['token'])  # run the bot with the token
