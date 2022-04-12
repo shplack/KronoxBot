@@ -2,7 +2,7 @@ import discord
 from discord import Option, AutocompleteContext, ApplicationContext
 
 from database.kronox_db import Database
-from src.kronox import LinkMaker, get_events
+from src.kronox import LinkMaker
 
 Database('../database/kronox_db.sqlite')
 bot = discord.Bot(intents=discord.Intents.all())
@@ -74,7 +74,13 @@ async def kronox(
     lm.program = program
     lm.start = start
     lm.end = end
-    await ctx.respond('```' + '\n'.join(get_events(lm.link)) + '```')
+    events = lm.events
+    if not events:
+        await ctx.respond(f"""```
+        KronoxBot found no events between {lm.start} and {lm.end} for {lm.program} at {lm.school}
+        ```""")
+    else:
+        await ctx.respond('```' + '\n'.join(events) + '```')
 
 
 bot.run("OTU5NzMxMjc1MDY3OTczNjMy.YkgJZg.848kVCV4EAweusY7TNfVYWtTUzs")  # run the bot with the token
