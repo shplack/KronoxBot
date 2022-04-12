@@ -31,15 +31,14 @@ class LinkMaker:
         tmw = ['tmorrow', 'tmw', 'imorn', 'imorgon', 'i morgon'], td(days=1)
         omw = ['overmorrow', 'over morrow', 'omw', 'imorn', 'imorgon', 'i morgon'], td(days=2)
 
-        for acceptables, delta in [tdy, tmw,omw]:
+        for acceptables, delta in [tdy, tmw, omw]:
             if _input in acceptables:
-                return (dt.today() + delta).date()
+                return dt.today() + delta
         try:
             return dt.strptime(_input, '%Y-%m-%d')
         except ValueError as e:
             print(e, _input)
-        finally:
-            return dt.today().date()
+            return dt.today()
 
     @property
     def start(self) -> str:
