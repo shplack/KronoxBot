@@ -42,7 +42,12 @@ def events_output(school: str, program: str, start: str, end: str):
     if not events:
         return f"""```KronoxBot found no events between {start} and {end} for {program} at {school}```"""
     else:
-        return '```' + '\n'.join(events) + '```'
+        output = ''
+        for event in events:
+            for k, v in event.items():
+                output += f'{k}: {v}\n'
+            output += '\n'
+        return f'```{output}```'
 
 
 @kronox.command(name='schema', description='Get your Kronox schedule')

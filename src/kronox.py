@@ -19,8 +19,8 @@ class LinkMaker:
         self._end = None
         self._school = None
         self._school_link = None
-        self._program_link = None
-        self._course_link = None
+        self._program = None
+        self._course = None
 
     @staticmethod
     def _do_date(_input: str) -> datetime.date:
@@ -76,59 +76,68 @@ class LinkMaker:
         if self._school_link:
             self._school = school
 
-
     @property
     def program(self) -> str:
-        return self._program_link
+        return Database.Programs.link(self._school, self._program)
 
     @program.setter
     def program(self, program: str) -> None:
         if self._school:
-            self._program_link = Database.Programs.link(self._school, program)
+            self._program = program
 
     @property
     def course(self) -> str:
-        return self._course_link
+        return Database.Programs.link(self._school, self._course)
 
     @course.setter
     def course(self, course: str) -> None:
         if self._school:
-            self._course_link = Database.Programs.link(self._school, course)
+            self._course = course
 
     @property
     def link(self) -> str:
         if not self._end or (self._start and self._end < self._start):
             self._end = self._start
 
-        if not (self._start and self._school_link and (self._program_link or self._course_link)):
+        if not (self._start and self._school_link and (self.program or self.course)):
             return ''
 
         link = self._school_link + ical_link + start + self.start + end + self.end + resource
-        if self._program_link:
-            link += 'p.' + self._program_link + ','
-        if self._course_link:
-            link += 'c.' + self._course_link + ','
+        if self.program:
+            link += 'p.' + self.program + ','
+        if self.course:
+            link += 'c.' + self.course + ','
 
         return link
 
     @property
     def events(self) -> list:
         _events = icalevents.events(url=self.link, end=self._end)
-        output = []
+        classes = []
         _start = len('Kurs.grp: ')
-        _end = ' Sign:'
+        sign = ' Sign: '
+        moment = ' Moment: '
 
         for event in _events:
-            name = event.summary[_start: event.summary.find(_end)]
-            organizer = event.summary[event.summary.find(_end) + len(_end): event.summary.find(' Moment')]
-            start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d %X')
+            _class = {}
+            if event.summary.find(sign) >= 0:
+                _class['Moment'] = event.summary[_start: event.summary.find(sign)]
+                _class['\tProfessor'] = event.summary[event.summary.find(sign) + len(sign): event.summary.find(moment)]
+            else:
+                if event.summary.find(' Program: ') >= 0:
+                    _class['Moment'] = event.summary[event.summary.find(moment) + len(moment):
+                                                     event.summary.find(' Program: ')]
+                else:
+                    _class['Moment'] = event.summary[event.summary.find(moment) + len(moment):]
+            start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%X')
             end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
-            location = event.location
-            output.append(' '.join([start_time, '-', end_time, name, location, organizer]))
+            _class['\tWhen'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
+                start_time + ' - ' + end_time
+            _class['\tRoom'] = event.location
+            classes.append(_class)
 
-        return output
+        return classes
 
     @events.setter
     def events(self, value):
         return
-
