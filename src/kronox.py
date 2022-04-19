@@ -64,7 +64,6 @@ class LinkMaker:
     @end.setter
     def end(self, value: str) -> None:
         self._end = LinkMaker._do_date(value.lower())
-        self._end += td(days=1)  # want to see the schedule for that day too
 
     @property
     def school(self) -> str:
@@ -121,19 +120,19 @@ class LinkMaker:
         for event in _events:
             _class = {}
             if event.summary.find(sign) >= 0:
-                _class['Moment'] = event.summary[_start: event.summary.find(sign)]
-                _class['\tProfessor'] = event.summary[event.summary.find(sign) + len(sign): event.summary.find(moment)]
+                _class['moment'] = event.summary[_start: event.summary.find(sign)]
+                _class['professor'] = event.summary[event.summary.find(sign) + len(sign): event.summary.find(moment)]
             else:
                 if event.summary.find(' Program: ') >= 0:
-                    _class['Moment'] = event.summary[event.summary.find(moment) + len(moment):
+                    _class['moment'] = event.summary[event.summary.find(moment) + len(moment):
                                                      event.summary.find(' Program: ')]
                 else:
-                    _class['Moment'] = event.summary[event.summary.find(moment) + len(moment):]
+                    _class['moment'] = event.summary[event.summary.find(moment) + len(moment):]
             start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%X')
             end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
-            _class['\tWhen'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
+            _class['when'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
                 start_time + ' - ' + end_time
-            _class['\tRoom'] = event.location
+            _class['room'] = event.location
             classes.append(_class)
 
         return classes
