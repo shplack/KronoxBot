@@ -1,6 +1,8 @@
+import datetime
 import sys
 
 import discord
+from discord import Embed
 from discord import Option, ApplicationContext
 from dotenv import dotenv_values
 
@@ -31,7 +33,7 @@ async def on_ready():
 kronox = bot.create_group(name="kronox", description="Get Kronox schedule", guild_ids=guilds)
 
 
-def events_output(school: str, program: str, start: str, end: str):
+def events_output(school: str, program: str, start: str, end: str) -> Embed:
     lm = LinkMaker()
     lm.school = school
     lm.program = program
@@ -39,15 +41,20 @@ def events_output(school: str, program: str, start: str, end: str):
     lm.end = end
     events = lm.events
 
+    _embed = Embed(timestamp=datetime.datetime.now(), colour=discord.Colour.blue())
+    _embed.set_footer(text='KronoxBot', icon_url='https://kronox.oru.se/images/favicon.gif')
     if not events:
-        return f"""```KronoxBot found no events between {start} and {end} for {program} at {school}```"""
+        _embed.description = f"""```KronoxBot found no events between {start} and {end} for {program} at {school}```"""
+        return _embed
     else:
-        output = ''
         for event in events:
-            for k, v in event.items():
-                output += f'{k}: {v}\n'
-            output += '\n'
-        return f'```{output}```'
+            _embed.description = '#' + event['moment'] + '\n'
+            if 'professor' in event:
+                _embed.description = _embed.description + '##' + event['professor'] + '\n'
+            _embed.add_field(name='When', value=event['when'])
+            _embed.add_field(name='Where', value=event['room'])
+
+        return _embed
 
 
 @kronox.command(name='schema', description='Get your Kronox schedule')
@@ -60,7 +67,7 @@ async def schema(
 ):
     # Autocomplete.do_last_used(ctx.user.id, school, program, course)
     Autocomplete.do_last_used(ctx.user.id, school, program)
-    await ctx.respond(events_output(school, program, start, end))
+    await ctx.respond(embed=events_output(school, program, start, end))
 
 
 saved = {}
@@ -96,7 +103,21 @@ async def load(
         return
 
     _saved = Autocomplete.saved[_id][name]
-    await ctx.respond(events_output(_saved['school'], _saved['program'], _saved['start'], _saved['end']))
+    await ctx.respond(embed=events_output(_saved['school'], _saved['program'], _saved['start'], _saved['end']))
+
+
+@bot.slash_command(guilds_ids=guilds)
+async def embed(
+        ctx: ApplicationContext
+):
+    _embed = Embed(
+        description='Test', colour=discord.Colour.blue(), title='Title test', timestamp=datetime.datetime.now(),
+        url='https://kronox.oru.se',
+    )
+    _embed.set_footer(text='KronoxBot', icon_url='https://kronox.oru.se/images/favicon.gif')
+    _embed.add_field(name='field', value='poopoo peepee')
+
+    await ctx.respond(embed=_embed)
 
 
 bot.run(config['token'])  # run the bot with the token
