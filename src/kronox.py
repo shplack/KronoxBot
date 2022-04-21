@@ -64,7 +64,6 @@ class LinkMaker:
     @end.setter
     def end(self, value: str) -> None:
         self._end = LinkMaker._do_date(value.lower())
-        self._end += td(days=1)  # want to see the schedule for that day too
 
     @property
     def school(self) -> str:
@@ -112,7 +111,7 @@ class LinkMaker:
 
     @property
     def events(self) -> list:
-        _events = icalevents.events(url=self.link, end=self._end)
+        _events = icalevents.events(url=self.link, end=self._end + td(days=1))
         classes = []
         _start = len('Kurs.grp: ')
         sign = ' Sign: '
@@ -133,7 +132,8 @@ class LinkMaker:
             end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
             _class['\tWhen'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
                 start_time + ' - ' + end_time
-            _class['\tRoom'] = event.location
+            if event.location:
+                _class['\tRoom'] = event.location
             classes.append(_class)
 
         return classes
