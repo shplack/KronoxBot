@@ -1,4 +1,3 @@
-import datetime
 import sys
 
 import discord
@@ -63,10 +62,13 @@ async def schema(
         school: Option(str, "Pick a school", autocomplete=Autocomplete.schools),
         program: Option(str, "Pick a program", autocomplete=Autocomplete.programs),
         start: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today'),
-        end: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", default='today')
+        end: Option(str, "Today, tmw, YYYY-MM-DD, days=3, weeks=1", required=False)
 ):
     # Autocomplete.do_last_used(ctx.user.id, school, program, course)
     Autocomplete.do_last_used(ctx.user.id, school, program)
+    if not end:
+        end = start
+    await ctx.respond(events_output(school, program, start, end))
     await ctx.respond(embed=events_output(school, program, start, end))
 
 

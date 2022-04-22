@@ -111,7 +111,9 @@ class LinkMaker:
 
     @property
     def events(self) -> list:
-        _events = icalevents.events(url=self.link, end=self._end)
+        _events = icalevents.events(url=self.link, end=self._end + td(days=1))
+        # timedelta 1 day because wanted date is day(0:00:00-23:59:59) but true date
+        # is day(0:00:00 - 0:00:00). adding a day resolves this
         classes = []
         _start = len('Kurs.grp: ')
         sign = ' Sign: '
@@ -132,7 +134,8 @@ class LinkMaker:
             end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
             _class['when'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
                 start_time + ' - ' + end_time
-            _class['room'] = event.location
+            if event.location:
+                _class['room'] = event.location
             classes.append(_class)
 
         return classes
