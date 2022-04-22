@@ -111,34 +111,34 @@ class LinkMaker:
 
     @property
     def events(self) -> list:
-        _events = icalevents.events(url=self.link, end=self._end + td(days=1))
+        events = icalevents.events(url=self.link, end=self._end + td(days=1))
         # timedelta 1 day because wanted date is day(0:00:00-23:59:59) but true date
         # is day(0:00:00 - 0:00:00). adding a day resolves this
-        classes = []
+        _events = []
         _start = len('Kurs.grp: ')
         sign = ' Sign: '
         moment = ' Moment: '
 
-        for event in _events:
-            _class = {}
+        for event in events:
+            _event = {'day': event.start.date()}
             if event.summary.find(sign) >= 0:
-                _class['moment'] = event.summary[_start: event.summary.find(sign)]
-                _class['professor'] = event.summary[event.summary.find(sign) + len(sign): event.summary.find(moment)]
+                _event['moment'] = event.summary[_start: event.summary.find(sign)]
+                _event['professor'] = event.summary[event.summary.find(sign) + len(sign): event.summary.find(moment)]
             else:
                 if event.summary.find(' Program: ') >= 0:
-                    _class['moment'] = event.summary[event.summary.find(moment) + len(moment):
+                    _event['moment'] = event.summary[event.summary.find(moment) + len(moment):
                                                      event.summary.find(' Program: ')]
                 else:
-                    _class['moment'] = event.summary[event.summary.find(moment) + len(moment):]
+                    _event['moment'] = event.summary[event.summary.find(moment) + len(moment):]
             start_time = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%X')
             end_time = event.end.astimezone(timezone('Europe/Stockholm')).strftime('%X')
-            _class['when'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
-                start_time + ' - ' + end_time
+            # _event['when'] = event.start.astimezone(timezone('Europe/Stockholm')).strftime('%Y-%m-%d') + ' ' + \
+            _event['when'] = start_time + ' - ' + end_time
             if event.location:
-                _class['room'] = event.location
-            classes.append(_class)
+                _event['room'] = event.location
+            _events.append(_event)
 
-        return classes
+        return _events
 
     @events.setter
     def events(self, value):

@@ -1,8 +1,10 @@
 import sys
+from datetime import datetime
 
 import discord
 from discord import Embed
 from discord import Option, ApplicationContext
+from discord.ext.pages import Page, Paginator
 from dotenv import dotenv_values
 
 from Autocompletions import Autocomplete
@@ -32,28 +34,51 @@ async def on_ready():
 kronox = bot.create_group(name="kronox", description="Get Kronox schedule", guild_ids=guilds)
 
 
-def events_output(school: str, program: str, start: str, end: str) -> Embed:
+def events_output(school: str, program: str, start: str, end: str) -> list[Page]:
     lm = LinkMaker()
     lm.school = school
     lm.program = program
     lm.start = start
     lm.end = end
     events = lm.events
+    embeds = []
+    pages = []
 
-    _embed = Embed(timestamp=datetime.datetime.now(), colour=discord.Colour.blue())
-    _embed.set_footer(text='KronoxBot', icon_url='https://kronox.oru.se/images/favicon.gif')
+    def make_embed(title: str = '', description: str = '') -> Embed:
+        default = Embed(timestamp=datetime.now(), colour=discord.Colour.blue(), title=title, description=description)
+        default.set_footer(text='KronoxBot', icon_url='https://kronox.oru.se/images/favicon.gif')
+        return default
+
     if not events:
-        _embed.description = f"""```KronoxBot found no events between {start} and {end} for {program} at {school}```"""
-        return _embed
+        when = ''
+        if start == end:
+            when += f'on `{start}`'
+        else:
+            when += f'between `{start}` and `{end}`'
+        _embed = make_embed(
+            title='No events found',
+            description=f'KronoxBot {when} found no events  for `{program}` at `{school}`'
+        )
+        embeds.append(_embed)
+        pages.append(Page(embeds=embeds))
     else:
+        current_day = None
         for event in events:
-            _embed.description = '#' + event['moment'] + '\n'
+            if event['day'] != current_day:
+                current_day = event['day']
+                if embeds:
+                    pages.append(Page(embeds=embeds))
+                embeds = []
+            _embed = make_embed(event['moment'], event['day'])
             if 'professor' in event:
-                _embed.description = _embed.description + '##' + event['professor'] + '\n'
+                _embed.add_field(name='Who', value=event['professor'])
             _embed.add_field(name='When', value=event['when'])
-            _embed.add_field(name='Where', value=event['room'])
+            if 'room' in event:
+                _embed.add_field(name='Where', value=event['room'])
+            embeds.append(_embed)
+        pages.append(Page(embeds=embeds))
 
-        return _embed
+    return pages
 
 
 @kronox.command(name='schema', description='Get your Kronox schedule')
@@ -68,8 +93,9 @@ async def schema(
     Autocomplete.do_last_used(ctx.user.id, school, program)
     if not end:
         end = start
-    await ctx.respond(events_output(school, program, start, end))
-    await ctx.respond(embed=events_output(school, program, start, end))
+
+    pages = events_output(school, program, start, end)
+    await Paginator(pages=pages).respond(ctx.interaction)
 
 
 saved = {}
@@ -105,7 +131,7 @@ async def load(
         return
 
     _saved = Autocomplete.saved[_id][name]
-    await ctx.respond(embed=events_output(_saved['school'], _saved['program'], _saved['start'], _saved['end']))
+    await schema(ctx, _saved['school'], _saved['program'], _saved['start'], _saved['end'])
 
 
 @bot.slash_command(guilds_ids=guilds)
@@ -113,7 +139,7 @@ async def embed(
         ctx: ApplicationContext
 ):
     _embed = Embed(
-        description='Test', colour=discord.Colour.blue(), title='Title test', timestamp=datetime.datetime.now(),
+        description='Test', colour=discord.Colour.blue(), title='Title test', timestamp=datetime.now(),
         url='https://kronox.oru.se',
     )
     _embed.set_footer(text='KronoxBot', icon_url='https://kronox.oru.se/images/favicon.gif')
